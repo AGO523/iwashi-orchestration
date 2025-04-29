@@ -1,0 +1,38 @@
+swagger: "2.0"
+info:
+  title: Publish API
+  version: 1.0.0
+paths:
+  /publish:
+    post:
+      operationId: publishMessage # ← 必須
+      x-google-backend:
+        address: https://pubsub.googleapis.com/v1/projects/iwashi-445400/topics/client-message-topic:publish
+      security:
+        - api_key: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              messages:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    data:
+                      type: string
+                    attributes:
+                      type: object
+                      additionalProperties:
+                        type: string
+      responses:
+        "200":
+          description: Message published successfully
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header

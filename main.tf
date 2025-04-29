@@ -84,39 +84,39 @@ resource "google_api_gateway_gateway" "gateway" {
 }
 
 # 8. Cloud Run Job作成
-resource "google_cloud_run_v2_job" "job" {
-  name     = "pubsub-pull-job"
-  location = var.region
+# resource "google_cloud_run_v2_job" "job" {
+#   name     = "pubsub-pull-job"
+#   location = var.region
 
-  template {
-    template {
-      containers {
-        image = "gcr.io/${var.project_id}/news-mailer"
-        env {
-          name  = "PUBSUB_TOPIC"
-          value = google_pubsub_topic.topic.name
-        }
-      }
-      vpc_access {
-        connector = google_vpc_access_connector.serverless_connector.id
-        egress    = "PRIVATE_RANGES_ONLY"
-      }
-    }
-  }
-}
+#   template {
+#     template {
+#       containers {
+#         image = "gcr.io/${var.project_id}/news-mailer"
+#         env {
+#           name  = "PUBSUB_TOPIC"
+#           value = google_pubsub_topic.topic.name
+#         }
+#       }
+#       vpc_access {
+#         connector = google_vpc_access_connector.serverless_connector.id
+#         egress    = "PRIVATE_RANGES_ONLY"
+#       }
+#     }
+#   }
+# }
 
-# 9. Cloud Scheduler作成
-resource "google_cloud_scheduler_job" "scheduler" {
-  name             = "cloud-run-job-trigger"
-  description      = "Trigger Cloud Run Job every day"
-  schedule         = "0 0 1 * *"
-  time_zone        = "Asia/Tokyo"
+# # 9. Cloud Scheduler作成
+# resource "google_cloud_scheduler_job" "scheduler" {
+#   name             = "cloud-run-job-trigger"
+#   description      = "Trigger Cloud Run Job every day"
+#   schedule         = "0 0 1 * *"
+#   time_zone        = "Asia/Tokyo"
 
-  http_target {
-    uri = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${google_cloud_run_v2_job.job.name}:run"
-    http_method = "POST"
-    oidc_token {
-      service_account_email = "terraform@${var.project_id}.iam.gserviceaccount.com"
-    }
-  }
-}
+#   http_target {
+#     uri = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${google_cloud_run_v2_job.job.name}:run"
+#     http_method = "POST"
+#     oidc_token {
+#       service_account_email = "terraform@${var.project_id}.iam.gserviceaccount.com"
+#     }
+#   }
+# }
