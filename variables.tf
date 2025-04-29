@@ -5,7 +5,3 @@ variable "project_id" {
 variable "region" {
   default = "asia-northeast1"
 }
-
-variable "credentials_file" {
-  default = "~/terraform-key.json"
-}

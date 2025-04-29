@@ -4,14 +4,29 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
+    }
   }
-  required_version = ">= 1.5.0"
 }
 
 provider "google" {
-  project     = var.project_id
-  region      = var.region
-  credentials = file(var.credentials_file)
+  project = var.project_id
+  region  = var.region
+}
+
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
+}
+
+# state ファイルをGCSに保存
+terraform {
+  backend "gcs" {
+    bucket  = "iwashi-terraform-state"
+    prefix  = "terraform/state"
+  }
 }
 
 # 1. VPCネットワーク作成
@@ -42,29 +57,30 @@ resource "google_pubsub_topic" "topic" {
 
 # 4. API Gateway API作成
 resource "google_api_gateway_api" "api" {
+  provider = google-beta
   api_id = "publish-api"
 }
 
 # 5. API Gateway Config作成
 resource "google_api_gateway_api_config" "api_config" {
+  provider = google-beta
   api      = google_api_gateway_api.api.api_id
   api_config_id = "publish-config"
 
   openapi_documents {
-    path = "openapi.yaml"
+    document {
+      path     = "openapi.yaml"
+      contents = filebase64("openapi.yaml")
+    }
   }
 }
 
 # 6. API Gateway Gateway作成
 resource "google_api_gateway_gateway" "gateway" {
+  provider = google-beta
   gateway_id = "publish-gateway"
   api_config = google_api_gateway_api_config.api_config.id
   region     = var.region
-}
-
-# 7. APIキー作成
-resource "google_api_key" "client_key" {
-  display_name = "client-api-key"
 }
 
 # 8. Cloud Run Job作成
