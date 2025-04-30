@@ -83,6 +83,16 @@ resource "google_api_gateway_gateway" "gateway" {
   region     = var.region
 }
 
+# 7. Artifact Registry（Dockerリポジトリ）作成
+resource "google_artifact_registry_repository" "docker_repo" {
+  provider = google-beta
+
+  location      = var.region
+  repository_id = "node-news-notification"
+  format        = "DOCKER"
+  description   = "Repository for Cloud Run Job Docker images"
+}
+
 # 8. Cloud Run Job作成
 # resource "google_cloud_run_v2_job" "job" {
 #   name     = "pubsub-pull-job"
