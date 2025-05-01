@@ -43,12 +43,12 @@ resource "google_compute_subnetwork" "subnet" {
 }
 
 # 2. Serverless VPC Connector作成
-resource "google_vpc_access_connector" "serverless_connector" {
-  name          = "serverless-connector"
-  region        = var.region
-  network       = google_compute_network.vpc_network.name
-  ip_cidr_range = "10.8.0.0/28"
-}
+# resource "google_vpc_access_connector" "serverless_connector" {
+#   name          = "serverless-connector"
+#   region        = var.region
+#   network       = google_compute_network.vpc_network.name
+#   ip_cidr_range = "10.8.0.0/28"
+# }
 
 # 3. Pub/Subトピック作成
 resource "google_pubsub_topic" "topic" {
