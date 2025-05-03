@@ -1,0 +1,10 @@
+variable "job_name" {}
+variable "region" {}
+variable "image" {}
+variable "pubsub_topic" {}
+variable "service_account_email" {}
+variable "scheduler_name" {}
+variable "description" {}
+variable "schedule" {}
+variable "time_zone" {}
+variable "cloud_run_job_uri" {}
