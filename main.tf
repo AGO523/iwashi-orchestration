@@ -42,13 +42,25 @@ resource "google_compute_subnetwork" "subnet" {
   region        = var.region
 }
 
-# 2. Serverless VPC Connector作成
-# resource "google_vpc_access_connector" "serverless_connector" {
-#   name          = "serverless-connector"
-#   region        = var.region
-#   network       = google_compute_network.vpc_network.name
-#   ip_cidr_range = "10.8.0.0/28"
-# }
+# 2. IAMポリシー設定
+resource "google_service_account" "app" {
+  account_id   = "app-job-executor"
+  display_name = "Service Account for Cloud Run Job and Scheduler"
+}
+
+# Cloud Run Job の実行に必要なロール
+resource "google_project_iam_member" "app_run_job_executor" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
+
+# Pub/Sub にアクセスするためのロール（Job内でpullするため）
+resource "google_project_iam_member" "app_pubsub_subscriber" {
+  project = var.project_id
+  role    = "roles/pubsub.subscriber"
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
 
 # 3. Pub/Subトピック作成
 resource "google_pubsub_topic" "topic" {
@@ -93,40 +105,40 @@ resource "google_artifact_registry_repository" "docker_repo" {
   description   = "Repository for Cloud Run Job Docker images"
 }
 
-# 8. Cloud Run Job作成
-# resource "google_cloud_run_v2_job" "job" {
-#   name     = "pubsub-pull-job"
-#   location = var.region
 
-#   template {
-#     template {
-#       containers {
-#         image = "gcr.io/${var.project_id}/news-mailer"
-#         env {
-#           name  = "PUBSUB_TOPIC"
-#           value = google_pubsub_topic.topic.name
-#         }
-#       }
-#       vpc_access {
-#         connector = google_vpc_access_connector.serverless_connector.id
-#         egress    = "PRIVATE_RANGES_ONLY"
-#       }
-#     }
-#   }
-# }
 
-# # 9. Cloud Scheduler作成
-# resource "google_cloud_scheduler_job" "scheduler" {
-#   name             = "cloud-run-job-trigger"
-#   description      = "Trigger Cloud Run Job every day"
-#   schedule         = "0 0 1 * *"
-#   time_zone        = "Asia/Tokyo"
+# 8. Cloud Run Job 作成
+resource "google_cloud_run_v2_job" "job" {
+  name     = "pubsub-pull-job"
+  location = var.region
 
-#   http_target {
-#     uri = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${google_cloud_run_v2_job.job.name}:run"
-#     http_method = "POST"
-#     oidc_token {
-#       service_account_email = "terraform@${var.project_id}.iam.gserviceaccount.com"
-#     }
-#   }
-# }
+  template {
+    template {
+      service_account = google_service_account.app.email
+      containers {
+        image = "asia-northeast1-docker.pkg.dev/${var.project_id}/node-news-notification/node-news-notification:latest"
+        env {
+          name  = "PUBSUB_TOPIC"
+          value = google_pubsub_topic.topic.name
+        }
+      }
+    }
+  }
+}
+
+# 9. Cloud Scheduler で Cloud Run Job を定期実行
+resource "google_cloud_scheduler_job" "scheduler" {
+  name        = "cloud-run-job-trigger"
+  description = "Trigger Cloud Run Job every day"
+  schedule    = "0 0 * * *"
+  time_zone   = "Asia/Tokyo"
+
+  http_target {
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${google_cloud_run_v2_job.job.name}:run"
+    http_method = "POST"
+
+    oidc_token {
+      service_account_email = google_service_account.app.email
+    }
+  }
+}
