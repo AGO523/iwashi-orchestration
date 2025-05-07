@@ -5,8 +5,10 @@ info:
 paths:
   /publish:
     post:
-      operationId: publishMessage # ← 必須
+      operationId: publishMessage
       x-google-backend:
+        path_translation: APPEND_PATH_TO_ADDRESS
+        jwt_audience: https://pubsub.googleapis.com/
         address: https://pubsub.googleapis.com/v1/projects/iwashi-445400/topics/client-message-topic:publish
       security:
         - api_key: []
