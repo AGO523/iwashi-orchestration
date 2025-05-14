@@ -1,15 +1,17 @@
 swagger: "2.0"
 info:
-  title: Publish API
+  title: Request Cloud Run API
   version: 1.0.0
 paths:
   /publish:
     post:
-      operationId: publishMessage
+      operationId: requestCloudRun
       x-google-backend:
+        # このコマンドで取得したURLを指定
+        # gcloud run services describe news-notification --region asia-northeast1 --format="value(status.url)"
+        address: https://node-news-notification-tru3mh5nma-an.a.run.app
+        jwt_audience: https://node-news-notification-tru3mh5nma-an.a.run.app
         path_translation: APPEND_PATH_TO_ADDRESS
-        jwt_audience: https://pubsub.googleapis.com/
-        address: https://pubsub.googleapis.com/v1/projects/iwashi-445400/topics/client-message-topic:publish
       security:
         - api_key: []
       parameters:
@@ -32,9 +34,4 @@ paths:
                         type: string
       responses:
         "200":
-          description: Message published successfully
-securityDefinitions:
-  api_key:
-    type: apiKey
-    name: x-api-key
-    in: header
+          description: OK

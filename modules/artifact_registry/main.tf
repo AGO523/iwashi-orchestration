@@ -5,3 +5,7 @@ resource "google_artifact_registry_repository" "docker_repo" {
   format        = "DOCKER"
   description   = var.description
 }
+
+output "repository_url" {
+  value = "asia-northeast1-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}"
+}

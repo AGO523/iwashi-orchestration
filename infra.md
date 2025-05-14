@@ -5,9 +5,7 @@ Client App (インターネット)
   ↓ POST /publish (x-api-key認証)
 API Gateway (GCP)
   ↓
-Pub/Sub Topic (client-message-topic)
-  ↓
-Cloud Run Job (pubsub-pull-job)【定期実行】
+Cloud Run
   ↓
 内部VPC経由で処理
 ```

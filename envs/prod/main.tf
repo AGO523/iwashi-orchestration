@@ -19,20 +19,17 @@ module "network" {
 module "iam" {
   source     = "../../modules/iam"
   project_id = var.project_id
-}
-
-module "pubsub" {
-  source     = "../../modules/pubsub"
-  topic_name = "client-message-topic"
+  gh_repo    = "AGO523/node-news-notification"
 }
 
 module "api_gateway" {
   source         = "../../modules/api_gateway"
-  api_id         = "publish-api"
-  api_config_id  = "publish-config"
-  gateway_id     = "publish-gateway"
+  api_id         = "request-cloud-run-api"
+  api_config_id  = "request-cloud-run-config-v01"
+  gateway_id     = "request-cloud-run-gateway"
   openapi_path   = "openapi.yaml"
   region         = var.region
+  service_account_email = module.iam.gateway_service_account_email
 }
 
 module "artifact_registry" {
@@ -40,18 +37,16 @@ module "artifact_registry" {
   repository_id = "node-news-notification"
   region        = var.region
   description   = "Repository for Cloud Run Job Docker images"
+  project_id    = var.project_id
 }
 
-module "job_scheduler" {
-  source                = "../../modules/job_scheduler"
-  job_name              = "pubsub-pull-job"
-  region                = var.region
-  image                 = "asia-northeast1-docker.pkg.dev/${var.project_id}/node-news-notification/node-news-notification:latest"
-  pubsub_topic          = module.pubsub.topic_name
+module "cloud_run" {
+  source        = "../../modules/cloud_run"
+  service_name  = "news-notification"
+  region        = var.region
+  image = "${module.artifact_registry.repository_url}/node-news-notification:latest"
+  api_key       = var.api_key
+  project_id    = var.project_id
+  gateway_service_account_email = module.iam.gateway_service_account_email
   service_account_email = module.iam.service_account_email
-  scheduler_name        = "cloud-run-job-trigger"
-  description           = "Trigger Cloud Run Job every day"
-  schedule              = "0 0 * * *"
-  time_zone             = "Asia/Tokyo"
-  cloud_run_job_uri     = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/pubsub-pull-job:run"
 }
