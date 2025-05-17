@@ -3,15 +3,15 @@ resource "google_service_account" "cloud_run" {
   display_name = "Cloud Run app service account"
 }
 
-resource "google_project_iam_member" "cloudrun_registry_access" {
-  project = var.project_id
-  role    = "roles/artifactregistry.reader"
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
-}
-
 resource "google_project_iam_member" "invoker" {
+  for_each = toset([
+    "roles/artifactregistry.reader",
+    "roles/run.invoker",
+    "roles/secretmanager.secretAccessor"
+  ])
+
   project = var.project_id
-  role    = "roles/run.invoker"
+  role    = each.value
   member  = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
