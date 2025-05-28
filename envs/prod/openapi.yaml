@@ -35,3 +35,8 @@ paths:
       responses:
         "200":
           description: OK
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header

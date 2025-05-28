@@ -25,7 +25,7 @@ module "iam" {
 module "api_gateway" {
   source         = "../../modules/api_gateway"
   api_id         = "request-cloud-run-api"
-  api_config_id  = "request-cloud-run-config-v01"
+  api_config_id  = "request-cloud-run-config-v02"
   gateway_id     = "request-cloud-run-gateway"
   openapi_path   = "openapi.yaml"
   region         = var.region
@@ -42,7 +42,7 @@ module "artifact_registry" {
 
 module "cloud_run" {
   source        = "../../modules/cloud_run"
-  service_name  = "news-notification"
+  service_name  = "node-news-notification"
   region        = var.region
   image = "${module.artifact_registry.repository_url}/node-news-notification:latest"
   api_key       = var.api_key
