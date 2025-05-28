@@ -1,92 +1,114 @@
+## 使用技術
+
+- フロントエンド: React Router v7 (Remix, TypeScript)
+- バックエンド:
+
+  - Node.js（Cloud Run）
+  - Hono（Cloudflare Workers）
+
+- データベース: Cloudflare D1 (SQLite ベース)
+- インフラ:
+
+  - GCP API Gateway（認証とルーティング）
+  - Cloud Run（要約処理）
+  - Cloudflare Workers（送信処理・購読処理）
+
+- 外部 API: Google Gemini API（要約生成）
+- 認証:
+
+  - API Key（API Gateway）
+  - IAM（Cloud Run）
+
 ## システム全体図
 
 ```
-Client App (インターネット)
-  ↓ POST /publish (x-api-key認証)
+Client App (React Router)
+  URL: https://github.com/AGO523/news-app-react-router
+  機能: ユーザーからのニュース配信要求（POST /publish）を送信
+  認証: API KEY による認証
+      ↓
 API Gateway (GCP)
-  ↓
-Cloud Run
-  ↓
-内部VPC経由で処理
+  URL: https://github.com/AGO523/iwashi-orchestration
+  機能: 認証（IAM）およびルーティング
+      ↓
+Cloud Run (Node.js アプリ)
+  URL: https://github.com/AGO523/node-news-notification
+  機能:
+    - Gemini API を使って要約を生成
+    - Cloudflare D1 に結果を保存（hono-messaging-worker-db）
+      ↓
+Cloudflare Workers (Hono)
+  URL: https://github.com/AGO523/hono-messaging-worker
+  機能:
+    - 保存された要約をメール送信
+    - Cloudflare D1 に送信処理結果を記録
+
+定期購読の処理:
+  Cloudflare Workers (Hono)
+    URL: https://github.com/AGO523/news-feed-subscriber
+    機能:
+      - Cloudflare D1（news-app-react-router の DB）から定期購読データを取得
+          ↓
+    API Gateway (GCP)
+      ↓ IAM認証
+    Cloud Run
+      ↓ Gemini 要約 + 保存 + メール送信処理（上記と同様）
 ```
 
----
+## 各コンポーネントの詳細
 
-# 【各コンポーネントの役割】
+### 1. Client App (React Router v7)
 
-| コンポーネント                                | 説明                                                                                   |
-| :-------------------------------------------- | :------------------------------------------------------------------------------------- |
-| Client App                                    | インターネット側のクライアント。API Gateway にリクエストを送る。                       |
-| API Gateway                                   | GCP 上の API エンドポイント。認証（API キー）を通し、リクエストを Pub/Sub に中継する。 |
-| Pub/Sub Topic (`client-message-topic`)        | メッセージキュー。API Gateway から受けたデータをためる。                               |
-| Cloud Run Job (`pubsub-pull-job`)             | Pub/Sub から Pull してメッセージを処理するバッチジョブ。                               |
-| VPC Network (`private-vpc`)                   | Cloud Run Job がプライベート通信するための VPC ネットワーク。                          |
-| VPC Access Connector (`serverless-connector`) | サーバーレス（Cloud Run Job）から VPC に入るための中継。                               |
-| Cloud Scheduler (`cloud-run-job-trigger`)     | Cloud Run Job を定期実行するスケジューラ（毎日実行）。                                 |
+- リポジトリ: [news-app-react-router](https://github.com/AGO523/news-app-react-router)
+- 使用言語: TypeScript
+- 機能:
 
----
+  - フォーム経由で `/publish` エンドポイントにニュース配信要求を送信
+  - 認証付きリクエストを送信
 
-# 【フロー詳細】
+### 2. API Gateway (GCP)
 
-1. **クライアントアプリ**が API Gateway のエンドポイントに`POST /publish`リクエストを送る。
-   - リクエストには必ず**API キー（x-api-key ヘッダー）**を付与。
-2. **API Gateway**がリクエストを受け取る。
-   - API キー認証を通過した場合だけ、リクエスト内容を**Pub/Sub Topic**に**Publish**する。
-3. **Pub/Sub Topic**にメッセージが溜まる。
-4. **Cloud Scheduler**が、毎日定期的に**Cloud Run Job**を起動する。
-5. **Cloud Run Job**は起動後、**Pub/Sub から Pull**してメッセージを取得。
-6. **取得したメッセージを VPC 内部で処理**できる（必要に応じて DB アクセスなど）。
+- リポジトリ: [iwashi-orchestration](https://github.com/AGO523/iwashi-orchestration)
+- Terraform を使用して GCP 上に構築
+- 機能:
+  - クライアントからのリクエストに対して API KEY によるアクセス制御
+  - Cloud Run へのルーティング
+  - IAM による認証実施
 
----
+### 3. Cloud Run (node-news-notification)
 
-# 【構成図（ビジュアルイメージ）】
+- リポジトリ: [node-news-notification](https://github.com/AGO523/node-news-notification)
+- 使用言語: Node.js
+- 機能:
 
-```plaintext
-[ Client App ]
-    |
-    v
-[ API Gateway ]
-    |
-    v
-[ Pub/Sub Topic ]
-    |
-(Cloud Scheduler起動)
-    |
-    v
-[ Cloud Run Job ]
-    |
-    v
-[ VPCネットワーク内リソース ]
-```
+  - Gemini API によるニュース要約
+  - 要約結果を Cloudflare D1 に保存
 
----
+### 4. Cloudflare Workers (hono-messaging-worker)
 
-# 【構成の特徴】
+- リポジトリ: [hono-messaging-worker](https://github.com/AGO523/hono-messaging-worker)
+- 使用言語: TypeScript（Hono フレームワーク）
+- 機能:
 
-- **API Gateway で認証管理**しているため、安全に外部からリクエスト受付
-- **Pub/Sub で非同期化**しているため、高負荷耐性がある
-- **Cloud Run Job でバッチ処理化**しているため、オンデマンドではなくスケジューラ管理
-- **VPC Connector を使用**して、Cloud Run Job がプライベート VPC にだけ通信できる（インターネット不要）
-- **すべて Terraform 管理**で再現性、構成管理が可能
+  - Cloudflare D1 に保存された要約を取得し、メール送信
+  - 処理結果を D1 に記録
 
----
+### 5. Cloudflare Workers (news-feed-subscriber)
 
-# 【なぜこの構成なのか？（設計思想）】
+- リポジトリ: [news-feed-subscriber](https://github.com/AGO523/news-feed-subscriber)
+- 使用言語: TypeScript（Hono フレームワーク）
+- 機能:
 
-- クライアントアプリから直接 Pub/Sub に書き込みさせない（API Gateway を経由）
-- IAM ポリシーを絞ってセキュリティを強化
-- クラウドネイティブ・マネージドサービス中心にして運用コスト削減
-- スケール耐性を持たせる（Pub/Sub と Cloud Run Job でスケール可）
+  - Cloudflare D1 から定期購読のデータを取得
+  - 配信タイミングに応じて GCP API Gateway 経由で配信処理をトリガー
 
----
+## データベース
 
-# 【まとめ】
+- Cloudflare D1
 
-| 項目         | 内容                                                                     |
-| :----------- | :----------------------------------------------------------------------- |
-| セキュリティ | API キー認証、IAM 管理、VPC 内限定通信                                   |
-| 可用性       | Pub/Sub でメッセージバッファリング                                       |
-| マネージド度 | Cloud Run Job / API Gateway / Pub/Sub / Cloud Scheduler で完全マネージド |
-| 将来拡張     | メッセージに応じて処理を追加できる                                       |
+  - ユーザーの購読情報、要約データ、送信結果などを格納
 
----
+## 認証・セキュリティ
+
+- API Gateway: key によるアクセス制御
+- Cloud Run: IAM によるアクセス制御

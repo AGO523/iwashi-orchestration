@@ -1,41 +1,85 @@
-# アプリケーションの構成
+# IWASHI Terraform Infrastructure
 
-## クライアントアプリ
+このリポジトリは、Google Cloud Platform (GCP) 上のインフラストラクチャを Terraform によってコード管理するための構成です。環境ごと（`dev` / `prod`）にモジュールを組み合わせ、再利用性と保守性を高めています。
 
-ユーザーが購読するニュースを登録するアプリケーション
+---
 
-- repository: news-app-react-router
-  - React Router v7(Remix)
-  - Cloudflare Workers: news-app-react-router
-  - Cloudflare D1: news-app-react-router
+## ディレクトリ構成
 
-## API Gateway
+```
+.
+├── command.md                  # Terraform コマンドまとめ
+├── envs                        # 環境ごとの構成（dev / prod）
+│   ├── dev/
+│   └── prod/
+│       ├── backend.tf          # GCS バケットによる state 管理
+│       ├── main.tf             # モジュールの呼び出し
+│       ├── openapi.yaml        # API Gateway 用 OpenAPI 定義
+│       ├── terraform.tfvars    # 環境固有の変数
+│       └── variables.tf        # 変数定義
+├── infra.md                    # インフラ設計の詳細説明
+├── key.md                      # 認証情報の使用方法（Git 管理対象外）
+├── modules                     # 共通モジュール群
+│   ├── api_gateway/
+│   ├── artifact_registry/
+│   ├── cloud_run/
+│   ├── iam/
+│   ├── network/
+│   └── pubsub/
+└── README.md
+```
 
-API Gateway を使用して、クライアントアプリケーションからのリクエストを中継する
-key.md に API Gateway の認証情報を記載(gitignore)
-/publish に POST することで、Pub/Sub にニュースを publish する
+---
 
-<!-- ## 中継アプリケーション
+## 管理対象リソース
 
-クライアントからのリクエストを受け取り、ニュースを取得して Pub/Sub に publish するアプリケーション
+- **API Gateway**: OpenAPI 定義に基づいた API ゲートウェイの構築
+- **Artifact Registry**: コンテナイメージ等の保存リポジトリ
+- **Cloud Run**: サーバーレスアプリケーションのデプロイ
+- **IAM**: サービスアカウントとロールの設定
+- **Network**: VPC、サブネットの定義
+- **Pub/Sub**: メッセージキューシステムの構築
 
-- repository: node-via-google-publisher
-  - Node.js
-  - Cloudrun
-    - デプロイは git リポジトリ連携
-      - https://cloud.google.com/run/docs/quickstarts/deploy-continuously?hl=ja#cloudrun_deploy_continuous_code-nodejs -->
+---
 
-## Pub/Sub (Terraform)
+## 初期セットアップ
 
-ニュースを受け取り、トピックに保管する
-API Gateway を使用して認証
+```bash
+# 認証情報の設定
+export GOOGLE_APPLICATION_CREDENTIALS=~/your-gcp-key.json
+```
 
-- name: client-message-topic
+---
 
-## サーバーアプリケーション
+## 基本コマンド
 
-Pub/Sub からニュースを取得して、Gemini API を使用してニュースの要約を取得、通知を行うアプリケーション
+```bash
+terraform init        # 初期化
+terraform plan        # 差分確認
+terraform apply       # 適用
+```
 
-- repository: node-news-notification
-  - Node.js
-  - Cloudrun(terraform)
+---
+
+## 本番環境での適用手順
+
+```bash
+cd envs/prod
+terraform init
+terraform apply -var-file=terraform.tfvars
+```
+
+---
+
+## 補足情報
+
+- `infra.md`: 全体アーキテクチャや構成の背景
+- `command.md`: よく使う Terraform コマンド集
+- `key.md`: 認証情報ファイル（\*.json）の配置と注意点（`.gitignore` 対象）
+
+---
+
+## 注意点
+
+- ステートファイルは `backend.tf` で指定した GCS バケット上に保存されます。
+- `openapi.yaml` の変更は API Gateway の挙動に影響するため、慎重に編集してください。
