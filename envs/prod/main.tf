@@ -25,7 +25,7 @@ module "iam" {
 module "api_gateway" {
   source         = "../../modules/api_gateway"
   api_id         = "request-cloud-run-api"
-  api_config_id  = "request-cloud-run-config-v02"
+  api_config_id  = "request-cloud-run-config-v03"
   gateway_id     = "request-cloud-run-gateway"
   openapi_path   = "openapi.yaml"
   region         = var.region

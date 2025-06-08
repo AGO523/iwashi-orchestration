@@ -35,6 +35,31 @@ paths:
       responses:
         "200":
           description: OK
+
+  /unsubscribed:
+    post:
+      operationId: handleUnsubscribed
+      x-google-backend:
+        address: https://node-news-notification-tru3mh5nma-an.a.run.app
+        jwt_audience: https://node-news-notification-tru3mh5nma-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      security:
+        - api_key: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+              reason:
+                type: string
+      responses:
+        "200":
+          description: Unsubscribed successfully
+
 securityDefinitions:
   api_key:
     type: apiKey
