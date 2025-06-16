@@ -36,6 +36,8 @@ paths:
         "200":
           description: OK
 
+  # 現状は未使用
+  # pubsubを使って複数のクライアントからリクエストを受ける場合に使用する
   /unsubscribed:
     post:
       operationId: handleUnsubscribed
